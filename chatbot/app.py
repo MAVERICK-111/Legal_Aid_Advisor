@@ -3,28 +3,27 @@ from dotenv import find_dotenv, load_dotenv
 import os
 import requests
 import pygame
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 
 load_dotenv(find_dotenv())
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 ELEVEN_LABS_API_KEY = os.getenv("ELEVEN_LABS_API_KEY")
 
+# Temporary message storage (in-memory)
+messages = []
+
 def play_audio(file_path):
     pygame.init()
     pygame.mixer.init()
-    
     pygame.mixer.music.load(file_path)
     pygame.mixer.music.play()
-
     while pygame.mixer.music.get_busy():
-        pygame.time.Clock().tick(10)  
-
+        pygame.time.Clock().tick(10)
     pygame.mixer.music.stop()
     pygame.mixer.quit()
 
 def get_voice_message(message):
     audio_file = "audio.mp3"
-
     if os.path.exists(audio_file):
         try:
             os.remove(audio_file)
@@ -34,48 +33,38 @@ def get_voice_message(message):
     payload = {
         "text": message,
         "model_id": "eleven_monolingual_v1",
-        "voice_settings": {
-            "stability": 0,
-            "similarity_boost": 0
-        }
+        "voice_settings": {"stability": 0, "similarity_boost": 0}
     }
-
     headers = {
         "accept": "audio/mpeg",
         "xi-api-key": ELEVEN_LABS_API_KEY,
         "Content-Type": "application/json"
     }
-
     response = requests.post(
         "https://api.elevenlabs.io/v1/text-to-speech/1qEiC6qsybMkmnNdVMbK",
         json=payload,
         headers=headers
     )
-
     if response.status_code == 200 and response.content:
         with open(audio_file, "wb") as f:
             f.write(response.content)
-        
-        play_audio(audio_file)  # Play after writing
-        return response.content
+        play_audio(audio_file)
+        return True
     else:
         print(f"Error fetching audio: {response.status_code} - {response.text}")
-        return None
+        return False
 
 def get_response_from_ai(human_input, history=""):
     template = f"""
-    You are a legal advisor working according to Indian Laws, help people. be short an upto the point
+    You are a legal advisor working for poor Indian people, give a short and plain text answer
     {history}
     You: {human_input}
     Assistant:
     """
-
     try:
-        model = genai.GenerativeModel("gemini-1.5-pro")  
+        model = genai.GenerativeModel("gemini-1.5-pro")
         response = model.generate_content(template)
-        
         return response.text if hasattr(response, "text") else response.candidates[0].content
-
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -89,9 +78,9 @@ def home():
 def send_message():
     human_input = request.form["human_input"]
     message = get_response_from_ai(human_input)
-    get_voice_message(message)
-    return message
+    messages.append({"input": human_input, "response": message})  # Store temporarily
+    get_voice_message(message)  # Play voice
+    return jsonify({"message": message, "history": messages})  # Return JSON
 
 if __name__ == "__main__":
     app.run(debug=True)
-

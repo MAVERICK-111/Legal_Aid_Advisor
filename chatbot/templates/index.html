@@ -2,21 +2,24 @@
 <html>
 
 <head>
-    <title>Chatbot</title>
+    <title>AI Lawyer</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 
 <body>
-    <h1>Ai Lawyer</h1>
-    <form method="POST" action="/send_message">
-        <input type="text" name="human_input" placeholder="Enter your message">
-        <button type="submit">SEND</button>
-    </form>
-
-    <div id="response_message"></div> 
+    <div class="container">
+        <h1>AI Lawyer</h1>
+        <form method="POST" action="/send_message">
+            <input type="text" name="human_input" placeholder="Ask your legal question..." required>
+            <button type="submit">Send</button>
+        </form>
+        <div id="response_message"></div>
+    </div>
 
     <script>
         const form = document.querySelector('form');
-        const response_message = document.getElementById('response_message');  // Fixed ID
+        const responseMessage = document.getElementById('response_message');
 
         form.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -26,15 +29,23 @@
                 method: 'POST',
                 body: formData
             })
-                .then(response => response.text())
+                .then(response => response.json())
                 .then(data => {
-                    response_message.innerHTML = data; 
+                    // Display all messages in history
+                    responseMessage.innerHTML = data.history.map(msg =>
+                        `<div class="message">
+                            <span class="input">You: ${msg.input}</span>
+                            <span class="response">AI: ${msg.response}</span>
+                        </div>`
+                    ).join('');
+                })
+                .catch(error => {
+                    responseMessage.innerHTML = `<div class="error">Error: ${error}</div>`;
                 });
 
             form.reset();
         });
     </script>
-
 </body>
 
 </html>
