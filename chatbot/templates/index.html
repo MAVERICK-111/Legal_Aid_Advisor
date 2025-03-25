@@ -1,51 +1,64 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Lawyer</title>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
-
 <body>
-    <div class="container">
-        <h1>AI Lawyer</h1>
-        <form method="POST" action="/send_message">
-            <input type="text" name="human_input" placeholder="Ask your legal question..." required>
+    <div class="chat-wrapper">
+        <h1>AI Lawyer Chat</h1>
+        <div id="chat-area"></div>
+        <form id="chat-form">
+            <input type="text" name="human_input" id="chat-input" placeholder="Ask me anything..." required>
             <button type="submit">Send</button>
         </form>
-        <div id="response_message"></div>
     </div>
 
     <script>
-        const form = document.querySelector('form');
-        const responseMessage = document.getElementById('response_message');
+        const form = document.getElementById('chat-form');
+        const chatArea = document.getElementById('chat-area');
 
-        form.addEventListener('submit', function (e) {
+        form.addEventListener('submit', async function(e) {
             e.preventDefault();
-            const formData = new FormData(form);
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
 
-            fetch('/send_message', {
-                method: 'POST',
-                body: formData
-            })
-                .then(response => response.json())
-                .then(data => {
-                    // Display all messages in history
-                    responseMessage.innerHTML = data.history.map(msg =>
-                        `<div class="message">
-                            <span class="input">You: ${msg.input}</span>
-                            <span class="response">AI: ${msg.response}</span>
-                        </div>`
-                    ).join('');
-                })
-                .catch(error => {
-                    responseMessage.innerHTML = `<div class="error">Error: ${error}</div>`;
-                });
+            if (message) {
+                addMessage('You', message, 'user');
 
-            form.reset();
+                try {
+                    const formData = new FormData(form);
+                    const response = await fetch('/send_message', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    const data = await response.json();
+
+                    if (data.history && data.history.length > 0) {
+                        const latest = data.history[data.history.length - 1];
+                        addMessage('Lawyer', latest.response, 'ai');
+                    } else {
+                        addMessage('Lawyer', 'Huh, nothing came back. Weird.', 'error');
+                    }
+                } catch (err) {
+                    addMessage('Error', 'Oops, something broke!', 'error');
+                }
+
+                input.value = ''; 
+            }
         });
+
+        function addMessage(sender, text, type) {
+            const msgDiv = document.createElement('div');
+            msgDiv.classList.add('message', type);
+            msgDiv.innerHTML = `<span class="who">${sender}:</span> ${text}`;
+            chatArea.appendChild(msgDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
     </script>
 </body>
-
 </html>

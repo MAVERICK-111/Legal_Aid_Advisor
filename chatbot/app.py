@@ -4,7 +4,9 @@ import os
 import requests
 import pygame
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS  # Importing flask_cors for enabling CORS
 
+# Load environment variables from .env file
 load_dotenv(find_dotenv())
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 ELEVEN_LABS_API_KEY = os.getenv("ELEVEN_LABS_API_KEY")
@@ -12,6 +14,7 @@ ELEVEN_LABS_API_KEY = os.getenv("ELEVEN_LABS_API_KEY")
 # Temporary message storage (in-memory)
 messages = []
 
+# Function to play audio using pygame
 def play_audio(file_path):
     pygame.init()
     pygame.mixer.init()
@@ -22,6 +25,7 @@ def play_audio(file_path):
     pygame.mixer.music.stop()
     pygame.mixer.quit()
 
+# Function to get voice message from Eleven Labs API
 def get_voice_message(message):
     audio_file = "audio.mp3"
     if os.path.exists(audio_file):
@@ -54,6 +58,7 @@ def get_voice_message(message):
         print(f"Error fetching audio: {response.status_code} - {response.text}")
         return False
 
+# Function to get response from the AI model
 def get_response_from_ai(human_input, history=""):
     template = f"""
     You are a legal advisor working for poor Indian people, give a short and plain text answer
@@ -68,7 +73,11 @@ def get_response_from_ai(human_input, history=""):
     except Exception as e:
         return f"Error: {str(e)}"
 
+# Initialize Flask app
 app = Flask(__name__)
+
+# Enable CORS for all domains (you can also restrict this to a specific origin like 'http://localhost:5173')
+CORS(app)  # This will allow all origins for cross-origin requests
 
 @app.route("/")
 def home():
@@ -80,7 +89,8 @@ def send_message():
     message = get_response_from_ai(human_input)
     messages.append({"input": human_input, "response": message})  # Store temporarily
     get_voice_message(message)  # Play voice
-    return jsonify({"message": message, "history": messages})  # Return JSON
+    return jsonify({"message": message, "history": messages})  # Return JSON response
 
+# Run the Flask app
 if __name__ == "__main__":
     app.run(debug=True)
